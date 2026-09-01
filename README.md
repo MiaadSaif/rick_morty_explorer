@@ -25,10 +25,19 @@ The project follows a layered architecture:
 
 ### Key packages
 
-- `get` (GetX) for state management and dependency injection
+- `provider` for state management
 - `http` for REST API calls
 - `hive` + `hive_flutter` for local persistence
 - `connectivity_plus` for network status
+
+## Sources
+
+- [Rick and Morty API](https://rickandmortyapi.com)
+- [`connectivity_plus` on pub.dev](https://pub.dev/packages/connectivity_plus)
+- [`provider` on pub.dev](https://pub.dev/packages/provider)
+- [`http` on pub.dev](https://pub.dev/packages/http)
+- [`hive` on pub.dev](https://pub.dev/packages/hive)
+- [`hive_flutter` on pub.dev](https://pub.dev/packages/hive_flutter)
 
 ## Running the app
 
