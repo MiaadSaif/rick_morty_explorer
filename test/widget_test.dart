@@ -1,30 +1,49 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rick_morty_explorer/app.dart';
+import 'package:rick_morty_explorer/tools/network_info.dart';
+import 'package:rick_morty_explorer/models/character_model.dart';
+import 'package:rick_morty_explorer/modules/character_detail/character_detail_page.dart';
 
-import 'package:rick_morty_explorer/main.dart';
+import 'fakes/fake_character_repository.dart';
 
+/// Widget test: verifies that tapping a character in the list
+/// navigates to the character detail screen.
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Tapping a character opens the detail screen', (tester) async {
+    // Set up a fake repository with one character.
+    final repository = FakeCharacterRepository(
+      characters: [
+        const Character(
+          id: 1,
+          name: 'Rick Sanchez',
+          status: 'Alive',
+          species: 'Human',
+          gender: 'Male',
+          image: '', // Empty image to avoid network requests in tests.
+          location: 'Earth',
+          origin: 'Earth',
+        ),
+      ],
+    );
+    final networkInfo = NetworkInfoImpl(Connectivity());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Launch the app with the fake repository injected.
+    await tester.pumpWidget(MyApp(
+      repository: repository,
+      networkInfo: networkInfo,
+    ));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // The character name should appear in the list.
+    expect(find.text('Rick Sanchez'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Tap the character to open the detail screen.
+    await tester.tap(find.text('Rick Sanchez'));
+    await tester.pumpAndSettle();
+
+    // Verify the detail screen is now showing.
+    expect(find.byType(CharacterDetailScreen), findsOneWidget);
+    expect(find.text('Rick Sanchez'), findsWidgets);
   });
 }
