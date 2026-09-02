@@ -60,7 +60,7 @@ class CharacterListController extends ChangeNotifier {
   Future<void> init() => load(page: 1, replace: true);
 
   @override
-  void dispose() {
+  void dispose() { // when controller is disposed, cancel debounce and remove listener from favourites controller
     _disposed = true;
     _debounce?.cancel();
     _favouritesController?.removeListener(_syncFavouriteState);
@@ -77,7 +77,7 @@ class CharacterListController extends ChangeNotifier {
   /// response that no longer matches the current query.
   void onSearchChanged(String value) {
     query = value;
-    _debounce?.cancel();
+    _debounce?.cancel(); // cancel previous debounce to avoid stale requests
     _debounce = Timer(const Duration(milliseconds: 400), () {
       load(page: 1, replace: true);
     });
@@ -86,7 +86,7 @@ class CharacterListController extends ChangeNotifier {
   // --- Pagination ---
 
   /// Loads the next page of characters (called when scrolling near the bottom).
-  Future<void> loadMore() async {
+  Future<void> loadMore() async { // fetch next page of characters
     if (isLoadingMore || !hasMore || _isFetching) return;
     await load(page: _currentPage + 1, replace: false);
   }
@@ -108,14 +108,14 @@ class CharacterListController extends ChangeNotifier {
   ///
   /// [replace] = true  → replaces the entire list (used for search/refresh)
   /// [replace] = false → appends to the existing list (used for pagination)
-  Future<void> load({required int page, bool replace = false}) async {
+  Future<void> load({required int page, bool replace = false}) async { //fetch characters from repository
     if (_disposed) return;
     // Keep the latest replacement request so a search is not lost while
     // another request is in flight.
-    if (_isFetching) {
-      if (replace) {
-        _pendingPage = page;
-        _pendingReplace = true;
+    if (_isFetching) { // if request is already in progress
+      if (replace) { // if replace is true, save page number and replace flag for later
+        _pendingPage = page; // save page number for later
+        _pendingReplace = true; // save replace flag for later
       }
       return;
     }
@@ -140,15 +140,15 @@ class CharacterListController extends ChangeNotifier {
       if (requestQuery != query) return;
 
       _handleResult(result, page: page, replace: replace);
-    } finally {
+    } finally { // whatever happens, reset loading state and check for pending requests
       _resetLoadingState();
       _isFetching = false;
       if (!_disposed) {
         notifyListeners();
         final pendingPage = _pendingPage;
-        if (pendingPage != null) {
-          _pendingPage = null;
-          unawaited(load(page: pendingPage, replace: _pendingReplace));
+        if (pendingPage != null) { // if there is a pending request, execute it
+          _pendingPage = null; // clear pending request
+          unawaited(load(page: pendingPage, replace: _pendingReplace)); // execute pending request but unawaited to avoid blocking
         }
       }
     }
@@ -158,7 +158,7 @@ class CharacterListController extends ChangeNotifier {
 
   /// Toggles the favourite status of a character in the list.
   /// Updates the UI immediately, then persists the change.
-  Future<void> toggleFavourite(Character character) async {
+  Future<void> toggleFavourite(Character character) async { // to add to favourites or remove from favourites
     final favouritesController = _favouritesController;
     if (favouritesController != null) {
       await favouritesController.toggle(character);
@@ -167,7 +167,7 @@ class CharacterListController extends ChangeNotifier {
 
     final updated = character.copyWith(isFavourite: !character.isFavourite);
     final index = characters.indexWhere((c) => c.id == character.id);
-    if (index != -1) {
+    if (index != -1) { // -1 means character not found in list because index starts from 0
       characters[index] = updated;
       if (!_disposed) notifyListeners();
     }
@@ -178,21 +178,21 @@ class CharacterListController extends ChangeNotifier {
     }
   }
 
-  void _syncFavouriteState() {
+  void _syncFavouriteState() { // to sync current fav list with exising fav list , to check if there is a change in fav list.
     if (_disposed) return;
     final favouritesController = _favouritesController;
     if (favouritesController == null) return;
     final favouriteIds = favouritesController.characters
         .map((c) => c.id)
-        .toSet();
+        .toSet(); // put in set {1, 2, 3}
     var changed = false;
     characters = characters.map((character) {
-      final isFavourite = favouriteIds.contains(character.id);
-      if (isFavourite == character.isFavourite) return character;
-      changed = true;
-      return character.copyWith(isFavourite: isFavourite);
+      final isFavourite = favouriteIds.contains(character.id);// check if character.id is in set {1,2,3}
+      if (isFavourite == character.isFavourite) return character; // if favourite state is the same, return character as is (no change) and go out from function .
+      changed = true; // if favourite state is different, set changed to true
+      return character.copyWith(isFavourite: isFavourite); // if favourite state is different, return character with new favourite state
     }).toList();
-    if (changed) notifyListeners();
+    if (changed) notifyListeners(); // trigger UI update if any character's favourite state changed
   }
 
   // --- Private helpers ---

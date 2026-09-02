@@ -22,15 +22,15 @@ class CharacterDetailController extends ChangeNotifier {
     this._repository,
     this.id, {
     this.character,
-    FavouritesController? favouritesController,
+    FavouritesController? favouritesController, // this is optional, if not provided, the controller will not be able to sync favourite state
   }) : _favouritesController = favouritesController {
-    _favouritesController?.addListener(_syncFavouriteState);
+    _favouritesController?.addListener(_syncFavouriteState);  // this listener will update the UI when the favourite state changes
   }
 
   @override
   void dispose() {
     _disposed = true;
-    _favouritesController?.removeListener(_syncFavouriteState);
+    _favouritesController?.removeListener(_syncFavouriteState); // this removes the listener to prevent memory leaks
     super.dispose();
   }
 
