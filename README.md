@@ -88,4 +88,5 @@ The app caches each list response in Hive using the normalized search query and 
 
 ## AI tool usage
 
-This project was implemented with the assistance of an AI coding assistant (Cascade) for code generation, debugging, and documentation.
+
+AI coding assistance (Cascade) was used during development for code suggestions, debugging support, and documentation assistance. All generated suggestions were reviewed, adapted, tested, and integrated by me. I remain responsible for the final implementation and understand the submitted code.on.
