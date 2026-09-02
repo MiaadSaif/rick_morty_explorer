@@ -11,8 +11,7 @@ class CharacterDetailScreen extends StatelessWidget {
   final Character? character;
   final int id;
 
-  // ignore: prefer_const_constructors_in_immutables
-  CharacterDetailScreen({super.key, this.character, required this.id});
+  const CharacterDetailScreen({super.key, this.character, required this.id});
 
   @override
   Widget build(BuildContext context) {

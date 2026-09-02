@@ -45,10 +45,20 @@ Provider supplies dependencies and screen controllers, while ChangeNotifier expo
 
 ## Running the app
 
+Requirements:
+
+- Flutter 3.32.7 (stable)
+- Dart 3.8.1
+- Xcode and an iOS simulator/device for iOS builds
+
+Setup and run:
+
 ```sh
 flutter pub get
 flutter run
 ```
+
+The app was built and tested on iOS using an iPhone 17 Pro Max simulator. Android configuration is included but was not used for the final manual verification.
 
 ## Running tests
 
@@ -63,8 +73,18 @@ The app caches each list response in Hive using the normalized search query and 
 ## Assumptions and limitations
 
 - Favourites are stored locally only and are not synced to the API.
-- Episode batching/lookup is not implemented; the bonus requirement was skipped to keep the implementation focused on the mandatory scope.
-- The app targets iOS, Android and macOS. Web support has not been verified.
+- Cached list pages are keyed by normalized search query and page; an uncached offline query does not use another query's data.
+- Episode batching/lookup is not implemented; the optional bonus was intentionally skipped to keep the mandatory scope solid.
+- The app was manually verified on iOS. Android configuration is included but was not manually tested for this submission; web support has not been verified.
+- Images are loaded from the API image URLs and may fail independently of cached character data when offline or rate-limited.
+- Rough time spent was not tracked.
+
+## Submission checklist
+
+- [x] Source code and incremental commit history
+- [x] README with setup, architecture, state, cache, assumptions, limitations, and AI disclosure
+- [ ] Record a 2–3 minute demo showing the app and at least one airplane-mode/offline scenario
+- [ ] Send the public repository link by email as requested by the assignment
 
 ## AI tool usage
 
