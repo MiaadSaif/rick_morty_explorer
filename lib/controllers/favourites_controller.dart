@@ -15,13 +15,22 @@ class FavouritesController extends ChangeNotifier {
   List<Character> characters = [];
   bool isLoading = false;
   Failure? failure;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   /// Loads all favourite characters from local storage.
   Future<void> load() async {
+    if (_disposed) return;
     isLoading = true;
     notifyListeners();
 
     final result = await _repository.getFavouriteCharacters();
+    if (_disposed) return;
 
     if (result is Success<List<Character>>) {
       characters = result.value;
@@ -34,17 +43,31 @@ class FavouritesController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Removes a character from favourites by toggling its favourite status.
-  /// Updates the UI immediately, then persists the change.
-  Future<void> remove(Character character) async {
-    final updated = character.copyWith(isFavourite: !character.isFavourite);
-    final index = characters.indexWhere((c) => c.id == updated.id);
+  /// Toggles a character and keeps the shared favourites state current.
+  Future<void> toggle(Character character) async {
+    if (_disposed) return;
+    final isCurrentlyFavourite = characters.any((c) => c.id == character.id);
+    final updated = character.copyWith(isFavourite: !isCurrentlyFavourite);
 
-    if (index != -1) {
-      characters[index] = updated;
+    if (isCurrentlyFavourite) {
+      characters.removeWhere((c) => c.id == character.id);
+    } else {
+      characters.add(updated);
+    }
+    notifyListeners();
+
+    final result = await _repository.toggleFavourite(updated);
+    if (result is FailureResult<void>) {
+      if (isCurrentlyFavourite) {
+        characters.add(character.copyWith(isFavourite: true));
+      } else {
+        characters.removeWhere((c) => c.id == character.id);
+      }
+      failure = result.error;
       notifyListeners();
     }
-
-    await _repository.toggleFavourite(updated);
   }
+
+  /// Removes a character from favourites and updates the visible list.
+  Future<void> remove(Character character) => toggle(character);
 }

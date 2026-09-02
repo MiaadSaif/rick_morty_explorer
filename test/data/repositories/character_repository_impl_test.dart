@@ -10,6 +10,9 @@ import 'package:rick_morty_explorer/services/character_local_service.dart';
 import 'package:rick_morty_explorer/api/character_api.dart';
 import 'package:rick_morty_explorer/repositories/character_repository_impl.dart';
 import 'package:rick_morty_explorer/models/character_list_model.dart';
+import 'package:rick_morty_explorer/models/dto/character_dto.dart';
+import 'package:rick_morty_explorer/models/dto/character_list_response_dto.dart';
+import 'package:rick_morty_explorer/models/dto/info_dto.dart';
 import 'package:rick_morty_explorer/tools/result.dart';
 
 /// A fake [NetworkInfo] that always returns a fixed connectivity value.
@@ -20,6 +23,9 @@ class FakeNetworkInfo implements NetworkInfo {
 
   @override
   Future<bool> get isConnected async => value;
+
+  @override
+  Stream<bool> get onConnectivityChanged => const Stream<bool>.empty();
 }
 
 /// Unit tests for [CharacterRepositoryImpl].
@@ -50,10 +56,16 @@ void main() {
   ) async {
     boxIndex++;
     final listCache = await Hive.openBox<String>('listCache_$boxIndex');
-    final characterCache = await Hive.openBox<String>('characterCache_$boxIndex');
+    final characterCache = await Hive.openBox<String>(
+      'characterCache_$boxIndex',
+    );
     final favourites = await Hive.openBox<String>('favourites_$boxIndex');
 
-    final local = CharacterLocalDataSource(listCache, characterCache, favourites);
+    final local = CharacterLocalDataSource(
+      listCache,
+      characterCache,
+      favourites,
+    );
     final remote = CharacterRemoteDataSource(client: client);
 
     return CharacterRepositoryImpl(
@@ -67,12 +79,7 @@ void main() {
     final client = http_testing.MockClient((request) async {
       return http.Response(
         jsonEncode({
-          'info': {
-            'count': 1,
-            'pages': 1,
-            'next': null,
-            'prev': null,
-          },
+          'info': {'count': 1, 'pages': 1, 'next': null, 'prev': null},
           'results': [
             {
               'id': 1,
@@ -83,7 +90,7 @@ void main() {
               'image': '',
               'origin': {'name': 'Earth'},
               'location': {'name': 'Earth'},
-            }
+            },
           ],
         }),
         200,
@@ -105,10 +112,7 @@ void main() {
     });
 
     final repository = await makeRepository(client);
-    final result = await repository.getCharacters(
-      page: 1,
-      name: 'unknownxyz',
-    );
+    final result = await repository.getCharacters(page: 1, name: 'unknownxyz');
 
     expect(result.isSuccess, isTrue);
     final list = (result as Success<CharacterList>).value;
@@ -125,4 +129,59 @@ void main() {
 
     expect(result.isFailure, isTrue);
   });
+
+  test(
+    'list cache keeps pages and never falls back to another query',
+    () async {
+      boxIndex++;
+      final listCache = await Hive.openBox<String>('listCache_$boxIndex');
+      final characterCache = await Hive.openBox<String>(
+        'characterCache_$boxIndex',
+      );
+      final favourites = await Hive.openBox<String>('favourites_$boxIndex');
+      final local = CharacterLocalDataSource(
+        listCache,
+        characterCache,
+        favourites,
+      );
+      CharacterListResponseDto pageResponse(int id) => CharacterListResponseDto(
+        info: const InfoDto(count: 2, pages: 2),
+        results: [
+          CharacterDto(
+            id: id,
+            name: 'Character $id',
+            status: 'Alive',
+            species: 'Human',
+            gender: 'Male',
+            image: '',
+            originName: 'Earth',
+            locationName: 'Earth',
+          ),
+        ],
+      );
+
+      await local.saveListCache(
+        pageResponse(1),
+        query: 'Rick',
+        page: 1,
+        fetchedAt: DateTime(2026),
+      );
+      await local.saveListCache(
+        pageResponse(2),
+        query: 'Rick',
+        page: 2,
+        fetchedAt: DateTime(2026),
+      );
+
+      expect(
+        local.getListCache(query: 'rick', page: 1)?.response.results.first.id,
+        1,
+      );
+      expect(
+        local.getListCache(query: 'RICK', page: 2)?.response.results.first.id,
+        2,
+      );
+      expect(local.getListCache(query: 'Morty', page: 1), isNull);
+    },
+  );
 }

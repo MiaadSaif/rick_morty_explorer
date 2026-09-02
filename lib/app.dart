@@ -30,11 +30,7 @@ class MyApp extends StatelessWidget {
   final CharacterRepository? repository;
   final NetworkInfo? networkInfo;
 
-  const MyApp({
-    super.key,
-    this.repository,
-    this.networkInfo,
-  });
+  const MyApp({super.key, this.repository, this.networkInfo});
 
   @override
   Widget build(BuildContext context) {
@@ -49,22 +45,26 @@ class MyApp extends StatelessWidget {
           create: (context) =>
               repository ?? _createRepository(context.read<NetworkInfo>()),
         ),
-        // Character list controller — loads first page on creation
-        ChangeNotifierProvider<CharacterListController>(
-          create: (context) =>
-              CharacterListController(context.read<CharacterRepository>())
-                ..init(),
-        ),
-        // Connectivity controller — checks status on creation
-        ChangeNotifierProvider<ConnectivityController>(
-          create: (context) =>
-              ConnectivityController(context.read<NetworkInfo>())
-                ..initConnectivity(),
-        ),
         // Favourites controller — loads favourites on creation
         ChangeNotifierProvider<FavouritesController>(
           create: (context) =>
               FavouritesController(context.read<CharacterRepository>())..load(),
+        ),
+        // Character list controller — loads first page on creation
+        ChangeNotifierProvider<CharacterListController>(
+          create: (context) => CharacterListController(
+            context.read<CharacterRepository>(),
+            favouritesController: context.read<FavouritesController>(),
+          )..init(),
+        ),
+        // Connectivity controller — checks status on creation
+        ChangeNotifierProvider<ConnectivityController>(
+          create: (context) => ConnectivityController(
+            context.read<NetworkInfo>(),
+            onConnectionRestored: context
+                .read<CharacterListController>()
+                .refresh,
+          )..initConnectivity(),
         ),
       ],
       child: MaterialApp(
@@ -109,18 +109,12 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   // Both screens are kept alive using IndexedStack so their state persists.
-  final _screens = const [
-    CharactersListScreen(),
-    FavouritesScreen(),
-  ];
+  final _screens = const [CharactersListScreen(), FavouritesScreen()];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),

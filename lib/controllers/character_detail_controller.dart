@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../tools/failures.dart';
 import '../tools/result.dart';
 import '../models/character_model.dart';
 import '../repositories/character_repository.dart';
+import 'favourites_controller.dart';
 
 /// Manages the state for a single character's detail screen.
 /// If the character is already known (passed from the list), it is used
@@ -10,34 +12,81 @@ import '../repositories/character_repository.dart';
 class CharacterDetailController extends ChangeNotifier {
   final CharacterRepository _repository;
   final int id;
+  final FavouritesController? _favouritesController;
   Character? character;
+  Failure? failure;
+  bool isLoading = false;
+  bool _disposed = false;
 
   CharacterDetailController(
     this._repository,
     this.id, {
     this.character,
-  });
+    FavouritesController? favouritesController,
+  }) : _favouritesController = favouritesController {
+    _favouritesController?.addListener(_syncFavouriteState);
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _favouritesController?.removeListener(_syncFavouriteState);
+    super.dispose();
+  }
 
   /// Loads the character if it wasn't already provided.
   Future<void> load() async {
-    if (character != null) return;
+    if (_disposed || character != null) return;
 
+    isLoading = true;
+    failure = null;
+    notifyListeners();
     final result = await _repository.getCharacter(id);
+    if (_disposed) return;
+
     if (result is Success<Character>) {
       character = result.value;
-      notifyListeners();
+    } else if (result is FailureResult<Character>) {
+      failure = result.failure;
     }
+    isLoading = false;
+    notifyListeners();
+  }
+
+  void retry() {
+    load();
   }
 
   /// Toggles the favourite status of this character.
   /// Updates the UI immediately, then persists the change.
   Future<void> toggleFavourite() async {
-    if (character == null) return;
-
-    final updated = character!.copyWith(isFavourite: !character!.isFavourite);
+    final current = character;
+    if (current == null) return;
+    final updated = current.copyWith(isFavourite: !current.isFavourite);
     character = updated;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
 
-    await _repository.toggleFavourite(updated);
+    final favouritesController = _favouritesController;
+    if (favouritesController != null) {
+      await favouritesController.toggle(updated);
+    } else {
+      final result = await _repository.toggleFavourite(updated);
+      if (result is FailureResult<void>) {
+        character = current;
+        if (!_disposed) notifyListeners();
+      }
+    }
+  }
+
+  void _syncFavouriteState() {
+    final favouritesController = _favouritesController;
+    final current = character;
+    if (_disposed || current == null || favouritesController == null) return;
+    final isFavourite = favouritesController.characters.any(
+      (item) => item.id == id,
+    );
+    if (current.isFavourite == isFavourite) return;
+    character = current.copyWith(isFavourite: isFavourite);
+    notifyListeners();
   }
 }

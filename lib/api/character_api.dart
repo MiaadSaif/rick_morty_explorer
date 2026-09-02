@@ -34,8 +34,8 @@ class CharacterRemoteDataSource {
       return const FailureResult(NetworkFailure());
     } on FormatException catch (_) {
       return const FailureResult(ParsingFailure());
-    } on Exception catch (e) {
-      return FailureResult(NetworkFailure(e.toString()));
+    } on Exception catch (_) {
+      return const FailureResult(NetworkFailure());
     }
   }
 
@@ -49,8 +49,8 @@ class CharacterRemoteDataSource {
       return const FailureResult(NetworkFailure());
     } on FormatException catch (_) {
       return const FailureResult(ParsingFailure());
-    } on Exception catch (e) {
-      return FailureResult(NetworkFailure(e.toString()));
+    } on Exception catch (_) {
+      return const FailureResult(NetworkFailure());
     }
   }
 
@@ -62,7 +62,9 @@ class CharacterRemoteDataSource {
     if (name != null && name.isNotEmpty) {
       queryParams['name'] = name;
     }
-    return Uri.parse('$baseUrl/character').replace(queryParameters: queryParams);
+    return Uri.parse(
+      '$baseUrl/character',
+    ).replace(queryParameters: queryParams);
   }
 
   /// Parses the HTTP response for a character list request.
@@ -90,9 +92,7 @@ class CharacterRemoteDataSource {
   }
 
   /// Parses the HTTP response for a single character request.
-  Result<CharacterDto> _parseSingleCharacterResponse(
-    http.Response response,
-  ) {
+  Result<CharacterDto> _parseSingleCharacterResponse(http.Response response) {
     if (response.statusCode == 404) {
       return const FailureResult(NotFoundFailure('Character not found.'));
     }

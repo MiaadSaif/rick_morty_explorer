@@ -4,11 +4,13 @@ import '../models/dto/character_list_response_dto.dart';
 /// that produced it and the time it was fetched. Used for offline support.
 class ListCache {
   final String? query;
+  final int page;
   final CharacterListResponseDto response;
   final DateTime fetchedAt;
 
   const ListCache({
     required this.query,
+    required this.page,
     required this.response,
     required this.fetchedAt,
   });
@@ -16,6 +18,7 @@ class ListCache {
   factory ListCache.fromJson(Map<String, dynamic> json) {
     return ListCache(
       query: json['query'] as String?,
+      page: (json['page'] as num?)?.toInt() ?? 1,
       response: CharacterListResponseDto.fromJson(
         json['response'] as Map<String, dynamic>,
       ),
@@ -24,8 +27,9 @@ class ListCache {
   }
 
   Map<String, dynamic> toJson() => {
-        'query': query,
-        'response': response.toJson(),
-        'fetchedAt': fetchedAt.toIso8601String(),
-      };
+    'query': query,
+    'page': page,
+    'response': response.toJson(),
+    'fetchedAt': fetchedAt.toIso8601String(),
+  };
 }

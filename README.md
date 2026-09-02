@@ -18,10 +18,14 @@ A Flutter application that explores the [Rick and Morty API](https://rickandmort
 
 The project follows a layered architecture:
 
-- `core/` — shared utilities (`Result`, `Failure`, `NetworkInfo`)
-- `data/` — DTOs, mappers, local and remote data sources, repository implementation
-- `domain/` — entities and repository contracts
-- `presentation/` — Providers, screens and widgets
+- `tools/` — shared utilities (`Result`, `Failure`, `NetworkInfo`)
+- `api/` and `services/` — remote and local data sources
+- `models/` — domain models, DTOs, and DTO-to-domain mappers
+- `repositories/` — repository contracts and implementations
+- `controllers/` — Provider/ChangeNotifier presentation state
+- `modules/` and `widgets/` — screens and reusable UI components
+
+Provider supplies dependencies and screen controllers, while ChangeNotifier exposes loading, data, error, pagination, and favourite state. This keeps widgets focused on rendering and user interaction and makes repositories replaceable in tests.
 
 ### Key packages
 
@@ -54,7 +58,7 @@ flutter test
 
 ## Offline behaviour
 
-The app caches list and detail responses in Hive. When the device is offline, previously cached data is returned and an offline banner is shown with the age of the cache.
+The app caches each list response in Hive using the normalized search query and page number, and caches individual detail responses by character ID. When the device is offline, only an exact cached query/page is returned; data from another search is never used. An offline banner shows the age of the cached data, and the list refreshes when connectivity is restored.
 
 ## Assumptions and limitations
 

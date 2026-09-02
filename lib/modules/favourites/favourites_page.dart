@@ -24,6 +24,10 @@ class FavouritesScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
+          if (controller.failure != null) {
+            return Center(child: Text(controller.failure!.message));
+          }
+
           if (controller.characters.isEmpty) {
             return const Center(child: Text('No favourites yet.'));
           }
@@ -54,18 +58,18 @@ class FavouritesScreen extends StatelessWidget {
 
   /// Navigates to the detail screen for the tapped character.
   void _openDetail(BuildContext context, Character character) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider(
-        create: (context) => CharacterDetailController(
-          context.read<CharacterRepository>(),
-          character.id,
-          character: character,
-        )..load(),
-        child: CharacterDetailScreen(
-          character: character,
-          id: character.id,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (context) => CharacterDetailController(
+            context.read<CharacterRepository>(),
+            character.id,
+            character: character,
+            favouritesController: context.read<FavouritesController>(),
+          )..load(),
+          child: CharacterDetailScreen(character: character, id: character.id),
         ),
       ),
-    ));
+    );
   }
 }

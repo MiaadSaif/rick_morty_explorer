@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/character_detail_controller.dart';
 import '../../controllers/character_list_controller.dart';
 import '../../controllers/connectivity_controller.dart';
+import '../../controllers/favourites_controller.dart';
 import '../../models/character_model.dart';
 import '../../repositories/character_repository.dart';
 import '../../widgets/character_list_tile.dart';
@@ -131,8 +132,8 @@ class _CharactersListScreenState extends State<CharactersListScreen> {
       child: ListView.builder(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: controller.characters.length +
-            (controller.isLoadingMore ? 1 : 0),
+        itemCount:
+            controller.characters.length + (controller.isLoadingMore ? 1 : 0),
         itemBuilder: (context, index) {
           // Show a loading spinner at the bottom while loading more.
           if (index == controller.characters.length) {
@@ -158,18 +159,18 @@ class _CharactersListScreenState extends State<CharactersListScreen> {
   /// Navigates to the detail screen for the tapped character.
   /// Creates a fresh [CharacterDetailController] for that character.
   void _openDetail(BuildContext context, Character character) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChangeNotifierProvider(
-        create: (context) => CharacterDetailController(
-          context.read<CharacterRepository>(),
-          character.id,
-          character: character,
-        )..load(),
-        child: CharacterDetailScreen(
-          character: character,
-          id: character.id,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (context) => CharacterDetailController(
+            context.read<CharacterRepository>(),
+            character.id,
+            character: character,
+            favouritesController: context.read<FavouritesController>(),
+          )..load(),
+          child: CharacterDetailScreen(character: character, id: character.id),
         ),
       ),
-    ));
+    );
   }
 }

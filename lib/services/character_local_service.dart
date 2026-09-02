@@ -23,7 +23,10 @@ class CharacterLocalDataSource {
   // --- Key helpers ---
   // Keys are prefixed to avoid collisions within the same Hive box.
 
-  String _listKey(String? query) => 'list_${query ?? ''}';
+  String _normalizeQuery(String? query) => query?.trim().toLowerCase() ?? '';
+
+  String _listKey(String? query, int page) =>
+      'list_${_normalizeQuery(query)}_page_$page';
   String _characterKey(int id) => 'char_$id';
   String _favouriteKey(int id) => 'fav_$id';
 
@@ -33,50 +36,23 @@ class CharacterLocalDataSource {
   Future<void> saveListCache(
     CharacterListResponseDto response, {
     String? query,
+    required int page,
     required DateTime fetchedAt,
   }) async {
     final cache = ListCache(
       query: query,
+      page: page,
       response: response,
       fetchedAt: fetchedAt,
     );
-    await listCacheBox.put(_listKey(query), jsonEncode(cache.toJson()));
+    await listCacheBox.put(_listKey(query, page), jsonEncode(cache.toJson()));
   }
 
-  /// Retrieves the cached list for the given query.
-  /// If no exact match is found, returns the most recently fetched cache.
-  ListCache? getListCache({String? query}) {
-    // First, try to find an exact match for this query.
-    final exactMatch = _getListCacheByKey(_listKey(query));
-    if (exactMatch != null) return exactMatch;
-
-    // No exact match — fall back to the most recently fetched cache.
-    return _findMostRecentListCache();
-  }
-
-  /// Returns the timestamp of the most relevant cached list, or null if none.
-  DateTime? getListCacheTimestamp({String? query}) {
-    return getListCache(query: query)?.fetchedAt;
-  }
-
-  ListCache? _getListCacheByKey(String key) {
-    final raw = listCacheBox.get(key);
+  /// Retrieves the cached list for the exact query and page.
+  ListCache? getListCache({String? query, required int page}) {
+    final raw = listCacheBox.get(_listKey(query, page));
     if (raw == null) return null;
     return _parseListCache(raw);
-  }
-
-  /// Scans all cached lists and returns the one with the latest [fetchedAt].
-  ListCache? _findMostRecentListCache() {
-    ListCache? mostRecent;
-    for (final entry in listCacheBox.toMap().entries) {
-      if (!entry.key.startsWith('list_')) continue;
-      final cache = _parseListCache(entry.value);
-      if (cache == null) continue;
-      if (mostRecent == null || cache.fetchedAt.isAfter(mostRecent.fetchedAt)) {
-        mostRecent = cache;
-      }
-    }
-    return mostRecent;
   }
 
   /// Parses a JSON string into a [ListCache], or returns null on error.
@@ -84,7 +60,7 @@ class CharacterLocalDataSource {
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return ListCache.fromJson(json);
-    } on Exception catch (_) {
+    } on Object {
       return null;
     }
   }
@@ -101,7 +77,7 @@ class CharacterLocalDataSource {
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
       return CharacterDto.fromJson(json);
-    } on Exception catch (_) {
+    } on Object {
       return null;
     }
   }

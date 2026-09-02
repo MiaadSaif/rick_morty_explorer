@@ -43,8 +43,12 @@ class CharacterRepositoryImpl implements CharacterRepository {
       return _getCharactersFromRemote(page: page, name: name);
     }
 
-    // Offline: try to serve from cache.
-    return _getCharactersFromCache(name: name);
+    // Offline: try to serve the exact requested page from cache.
+    try {
+      return await _getCharactersFromCache(page: page, name: name);
+    } on Object {
+      return const FailureResult(CacheFailure());
+    }
   }
 
   @override
@@ -55,19 +59,30 @@ class CharacterRepositoryImpl implements CharacterRepository {
       return _getCharacterFromRemote(id);
     }
 
-    // Offline: try to serve from cache.
-    return _getCharacterFromCache(id);
+    try {
+      return await _getCharacterFromCache(id);
+    } on Object {
+      return const FailureResult(CacheFailure());
+    }
   }
 
   @override
   Future<Result<List<Character>>> getFavouriteCharacters() async {
-    return Success(local.getFavouriteCharacters());
+    try {
+      return Success(local.getFavouriteCharacters());
+    } on Object {
+      return const FailureResult(CacheFailure());
+    }
   }
 
   @override
   Future<Result<void>> toggleFavourite(Character character) async {
-    await local.toggleFavourite(character);
-    return const Success(null);
+    try {
+      await local.toggleFavourite(character);
+      return const Success(null);
+    } on Object {
+      return const FailureResult(CacheFailure());
+    }
   }
 
   // --- Private helpers for character list ---
@@ -85,21 +100,37 @@ class CharacterRepositoryImpl implements CharacterRepository {
       final fetchedAt = DateTime.now();
 
       // Save to cache so we can use it later when offline.
-      await local.saveListCache(response, query: name, fetchedAt: fetchedAt);
+      try {
+        await local.saveListCache(
+          response,
+          query: name,
+          page: page,
+          fetchedAt: fetchedAt,
+        );
+      } on Object {
+        return const FailureResult(CacheFailure());
+      }
 
       return _mapResponseToCharacterList(response, fetchedAt);
     }
 
-    // Remote failed — try cache before giving up.
-    final cache = local.getListCache(query: name);
-    if (cache != null) return _mapCacheToCharacterList(cache);
+    // Remote failed — try the exact requested page before giving up.
+    try {
+      final cache = local.getListCache(query: name, page: page);
+      if (cache != null) return _mapCacheToCharacterList(cache);
+    } on Object {
+      return const FailureResult(CacheFailure());
+    }
 
     return FailureResult(remoteResult.failure ?? const NetworkFailure());
   }
 
   /// Returns a cached character list, or a failure if no cache exists.
-  Future<Result<CharacterList>> _getCharactersFromCache({String? name}) async {
-    final cache = local.getListCache(query: name);
+  Future<Result<CharacterList>> _getCharactersFromCache({
+    required int page,
+    String? name,
+  }) async {
+    final cache = local.getListCache(query: name, page: page);
     if (cache != null) return _mapCacheToCharacterList(cache);
 
     return const FailureResult(
@@ -116,7 +147,11 @@ class CharacterRepositoryImpl implements CharacterRepository {
 
     if (remoteResult is Success<CharacterDto>) {
       final dto = remoteResult.value;
-      await local.saveCharacter(dto);
+      try {
+        await local.saveCharacter(dto);
+      } on Object {
+        return const FailureResult(CacheFailure());
+      }
       return _mapDtoToCharacter(dto);
     }
 
@@ -182,8 +217,6 @@ class CharacterRepositoryImpl implements CharacterRepository {
   /// merging the `isFavourite` flag from local storage.
   Result<Character> _mapDtoToCharacter(CharacterDto dto) {
     final favouriteIds = _favouriteIds();
-    return Success(
-      dto.toEntity(isFavourite: favouriteIds.contains(dto.id)),
-    );
+    return Success(dto.toEntity(isFavourite: favouriteIds.contains(dto.id)));
   }
 }

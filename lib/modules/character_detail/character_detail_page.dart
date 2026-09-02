@@ -12,11 +12,7 @@ class CharacterDetailScreen extends StatelessWidget {
   final int id;
 
   // ignore: prefer_const_constructors_in_immutables
-  CharacterDetailScreen({
-    super.key,
-    this.character,
-    required this.id,
-  });
+  CharacterDetailScreen({super.key, this.character, required this.id});
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +22,32 @@ class CharacterDetailScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(title: Text(character?.name ?? 'Character')),
-          body: character == null
-              ? const Center(child: CircularProgressIndicator())
-              : _buildCharacterDetails(context, character, controller),
+          body: character != null
+              ? _buildCharacterDetails(context, character, controller)
+              : controller.failure != null
+              ? _buildError(context, controller)
+              : const Center(child: CircularProgressIndicator()),
         );
       },
+    );
+  }
+
+  Widget _buildError(
+    BuildContext context,
+    CharacterDetailController controller,
+  ) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(controller.failure!.message),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: controller.retry,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -94,9 +111,6 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(label),
-      subtitle: Text(value),
-    );
+    return ListTile(title: Text(label), subtitle: Text(value));
   }
 }

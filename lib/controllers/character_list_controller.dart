@@ -7,6 +7,7 @@ import '../tools/result.dart';
 import '../models/character_model.dart';
 import '../models/character_list_model.dart';
 import '../repositories/character_repository.dart';
+import 'favourites_controller.dart';
 
 /// Manages the state for the character list screen.
 ///
@@ -20,8 +21,14 @@ import '../repositories/character_repository.dart';
 /// Extends [ChangeNotifier] so Provider can rebuild the UI when state changes.
 class CharacterListController extends ChangeNotifier {
   final CharacterRepository _repository;
+  final FavouritesController? _favouritesController;
 
-  CharacterListController(this._repository);
+  CharacterListController(
+    this._repository, {
+    FavouritesController? favouritesController,
+  }) : _favouritesController = favouritesController {
+    _favouritesController?.addListener(_syncFavouriteState);
+  }
 
   // --- Public state (read by the UI) ---
 
@@ -38,6 +45,9 @@ class CharacterListController extends ChangeNotifier {
   int _currentPage = 1;
   Timer? _debounce;
   bool _isFetching = false;
+  bool _disposed = false;
+  int? _pendingPage;
+  bool _pendingReplace = false;
 
   // Tracks the most recent load() call so retry() can repeat it exactly,
   // including whether it was a replace (page 1) or an append (pagination).
@@ -51,7 +61,9 @@ class CharacterListController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _debounce?.cancel();
+    _favouritesController?.removeListener(_syncFavouriteState);
     super.dispose();
   }
 
@@ -87,10 +99,8 @@ class CharacterListController extends ChangeNotifier {
   /// Retries the last request (initial, search, or pagination).
   /// Preserves whether the failed request was a replace or an append,
   /// so the existing list is not thrown away when a load-more fails.
-  void retry() => load(
-        page: _lastRequestedPage,
-        replace: _lastRequestedReplace,
-      );
+  void retry() =>
+      load(page: _lastRequestedPage, replace: _lastRequestedReplace);
 
   // --- Core load method ---
 
@@ -99,8 +109,16 @@ class CharacterListController extends ChangeNotifier {
   /// [replace] = true  → replaces the entire list (used for search/refresh)
   /// [replace] = false → appends to the existing list (used for pagination)
   Future<void> load({required int page, bool replace = false}) async {
-    // Guard against concurrent fetches.
-    if (_isFetching) return;
+    if (_disposed) return;
+    // Keep the latest replacement request so a search is not lost while
+    // another request is in flight.
+    if (_isFetching) {
+      if (replace) {
+        _pendingPage = page;
+        _pendingReplace = true;
+      }
+      return;
+    }
     _isFetching = true;
 
     // Remember this request so retry() can repeat it correctly.
@@ -125,7 +143,14 @@ class CharacterListController extends ChangeNotifier {
     } finally {
       _resetLoadingState();
       _isFetching = false;
-      notifyListeners();
+      if (!_disposed) {
+        notifyListeners();
+        final pendingPage = _pendingPage;
+        if (pendingPage != null) {
+          _pendingPage = null;
+          unawaited(load(page: pendingPage, replace: _pendingReplace));
+        }
+      }
     }
   }
 
@@ -134,13 +159,40 @@ class CharacterListController extends ChangeNotifier {
   /// Toggles the favourite status of a character in the list.
   /// Updates the UI immediately, then persists the change.
   Future<void> toggleFavourite(Character character) async {
+    final favouritesController = _favouritesController;
+    if (favouritesController != null) {
+      await favouritesController.toggle(character);
+      return;
+    }
+
     final updated = character.copyWith(isFavourite: !character.isFavourite);
     final index = characters.indexWhere((c) => c.id == character.id);
     if (index != -1) {
       characters[index] = updated;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
-    await _repository.toggleFavourite(updated);
+    final result = await _repository.toggleFavourite(updated);
+    if (result is FailureResult<void> && index != -1) {
+      characters[index] = character;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  void _syncFavouriteState() {
+    if (_disposed) return;
+    final favouritesController = _favouritesController;
+    if (favouritesController == null) return;
+    final favouriteIds = favouritesController.characters
+        .map((c) => c.id)
+        .toSet();
+    var changed = false;
+    characters = characters.map((character) {
+      final isFavourite = favouriteIds.contains(character.id);
+      if (isFavourite == character.isFavourite) return character;
+      changed = true;
+      return character.copyWith(isFavourite: isFavourite);
+    }).toList();
+    if (changed) notifyListeners();
   }
 
   // --- Private helpers ---
